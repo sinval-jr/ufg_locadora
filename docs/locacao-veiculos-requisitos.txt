@@ -1,0 +1,102 @@
+Você deve elaborar um diagrama de classes UML para um sistema de locadora de veículos. O sistema deve atender aos seguintes requisitos:
+
+
+O sistema deve cadastrar pessoas, que podem ser clientes ou funcionários, compartilhando dados básicos como nome, telefone e email.
+
+Cliente: possui CPF, endereço e CNH.
+
+Funcionário: possui matrícula, cargo e salário.
+
+Os clientes podem fazer reservas de veículos para determinado período.
+
+Cada reserva deve estar ligada a um veículo específico e a um pagamento.
+
+Quando confirmada, a reserva se transforma em uma locação, contendo dados de retirada, devolução e quilometragem.
+
+Funcionários são responsáveis por registrar locações.
+
+A locadora deve controlar os veículos disponíveis, registrando manutenções periódicas.
+
+Cada manutenção tem uma descrição, data e custo.
+
+
+OBS: Não é necessário persistir (trabalhar) com Banco de Dados, caso essa solicitação ocorra apenas escreva mensagens. 
+
+
+** Ações Possíveis:
+
+Pessoa
+
+atualizarContato()
+
+
+
+Cliente
+
+alugarVeiculo()
+
+devolverVeiculo()
+
+pagarReserva()
+
+
+Funcionário
+
+registrarLocacao()
+
+calcularSalario()
+
+atualizarCargo()
+
+
+Reserva
+
+confirmar()
+
+cancelar()
+
+calcularValor()
+
+associarVeiculo()
+
+
+Locação
+
+iniciar()
+
+encerrar()
+
+calcularCustoFinal()
+
+gerarRecibo()
+
+
+Veículo
+
+atualizarStatus()
+
+registrarManutencao()
+
+disponivelParaReserva()
+
+incrementarQuilometragem()
+
+
+Pagamento
+
+processar()
+
+confirmar()
+
+estornar()
+
+emitirRecibo()
+
+
+Manutenção
+
+registrar()
+
+concluir()
+
+gerarRelatorio()
