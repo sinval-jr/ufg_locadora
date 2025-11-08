@@ -1,0 +1,183 @@
+@startuml
+title Diagrama de Classes - Locacao de Veiculos
+
+'========================
+'FORMATAÇÃO
+'========================
+'Se quiser que ela vá da esquerda pra direita na imagem final só tirar os ' '
+left to right direction
+'Pra ficar com + e - na imagem ao invés de quadrados'
+skinparam classAttributeIconSize 0 
+
+'========================
+' ENUMS
+'========================
+
+class StatusVeiculo <<enumeration>> {
+  Disponivel
+  Reservado
+  Alugado
+  Manutencao
+  Indisponivel
+}
+
+class StatusReserva <<enumeration>> {
+  Pendente
+  Confirmada
+  Cancelada
+}
+
+class StatusPagamento <<enumeration>> {
+  Pendente
+  Confirmado
+  Estornado
+}
+
+class StatusLocacao <<enumeration>> {
+  EmAndamento
+  Finalizada
+  Atrasada
+  Cancelada
+}
+
+class TipoPagamento <<enumeration>> {
+  Cartao
+  Boleto
+  Dinheiro
+  Transferencia
+}
+
+'========================
+' SUPERCLASSES
+'========================
+abstract class Pessoa {
+  - id: UUID
+  - nome: string
+  - telefone: string
+  - email: string
+  + atualizarContato(telefone, email)
+}
+
+'========================
+' CLASSES
+'========================
+class Cliente {
+  - cpf: string
+  + alugarVeiculo(reservaId)
+  + devolverVeiculo(locacaoId, kmFinal)
+  + pagarReserva(Pagamento)
+}
+
+class Funcionario {
+  - matricula: string
+  - cargo: string
+  - salario: decimal
+  + registrarLocacao(locacao:Locacao)
+  + calcularSalario(): decimal
+  + atualizarCargo(novoCargo)
+}
+
+class Veiculo {
+  - id: UUID
+  - placa: string
+  - modelo: string
+  - categoria: string
+  - status: StatusVeiculo
+  - kmAtual: int
+  + atualizarStatus(novoStatus)
+  + registrarManutencao(m:Manutencao)
+  + disponivelParaReserva(dataInicio, dataFim): bool
+  + incrementarQuilometragem(km: int)
+}
+
+class Reserva {
+  - id: UUID
+  - dataInicio: Date
+  - dataFim: Date
+  - status: StatusReserva
+  + confirmar()
+  + cancelar()
+  + calcularValor(): decimal
+  + associarVeiculo(Veiculo)
+}
+
+class Locacao {
+  - dataRetirada: DateTime
+  - dataDevolucaoPrevista: DateTime
+  - dataDevolucaoReal: DateTime [0..1]
+  - kmRetirada: int
+  - kmDevolucao: int [0..1]
+  - status: StatusLocacao
+  + iniciar(func:Funcionario)
+  + encerrar(kmFinal:int, dataDevolucao:DateTime)
+  + calcularCustoFinal(): decimal
+  + gerarRecibo(): Recibo
+}
+
+class Pagamento {
+  - tipo: TipoPagamento
+  - status: StatusPagamento
+  + processar()
+  + confirmar()
+  + estornar()
+  + emitirRecibo(): Recibo
+}
+
+class Transacao {
+  - id: UUID
+  - valor: decimal
+  - data: DateTime
+}
+
+class Manutencao {
+  - id: UUID
+  - descricao: string
+  - data: Date
+  - custo: decimal
+  - status: boolean
+  + registrar()
+  + concluir()
+  + gerarRelatorio(): string
+}
+
+class Endereco {
+  - rua: string
+  - numero: string
+  - cidade: string
+  - cep: string
+}
+
+class Recibo {
+  - id: UUID
+  - conteudo: string
+  + imprimir()
+}
+
+'========================
+' HERANÇAS
+'========================
+Pessoa <|-- Cliente
+Pessoa <|-- Funcionario
+
+'========================
+' COMPOSIÇÕES
+'========================
+Pessoa *-- Endereco : possui
+Cliente "1" *-- "0..*" Reserva : faz
+Locacao *-- Recibo : emite 
+Pagamento *-- Recibo : gera
+Reserva "1" *-- "0..1" Pagamento : possui
+Veiculo "1" *-- "0..*" Manutencao : recebe 
+Pagamento "1" *-- "1" Transacao : cria
+Locacao "1" *-- "1" Transacao : acessa
+
+'========================
+' ASSOCIAÇÕES
+'========================
+Reserva "1" -- "1" Veiculo : reserva_de
+Reserva "1" -- "0..1" Locacao : gera
+Locacao "1" -- "1" Funcionario : registrada_por
+Locacao "1" -- "1" Veiculo : utiliza
+
+'ALT + D"
+@enduml
