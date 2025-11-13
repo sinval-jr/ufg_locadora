@@ -1,4 +1,4 @@
-@startuml
+@startuml Diagrama de Classes - Locacao de Veiculos
 title Diagrama de Classes - Locacao de Veiculos
 
 '========================
@@ -22,9 +22,10 @@ class StatusVeiculo <<enumeration>> {
 }
 
 class StatusReserva <<enumeration>> {
-  Pendente
-  Confirmada
+  Confimarda
   Cancelada
+  Retirada 
+  Não Redirada
 }
 
 class StatusPagamento <<enumeration>> {
@@ -47,6 +48,13 @@ class TipoPagamento <<enumeration>> {
   Transferencia
 }
 
+class TipoCargo <<enumeration>> {
+  Atendente
+  Vendedor
+  Supervisor
+  Gerente
+}
+
 '========================
 ' SUPERCLASSES
 '========================
@@ -55,6 +63,7 @@ abstract class Pessoa {
   - nome: string
   - telefone: string
   - email: string
+  - cep: int
   + atualizarContato(telefone, email)
 }
 
@@ -63,6 +72,7 @@ abstract class Pessoa {
 '========================
 class Cliente {
   - cpf: string
+  - cnh: string
   + alugarVeiculo(reservaId)
   + devolverVeiculo(locacaoId, kmFinal)
   + pagarReserva(Pagamento)
@@ -70,7 +80,7 @@ class Cliente {
 
 class Funcionario {
   - matricula: string
-  - cargo: string
+  - cargo: TipoCargo
   - salario: decimal
   + registrarLocacao(locacao:Locacao)
   + calcularSalario(): decimal
@@ -98,6 +108,7 @@ class Reserva {
   + confirmar()
   + cancelar()
   + calcularValor(): decimal
+  + gerarpagamento(): Pagamento
   + associarVeiculo(Veiculo)
 }
 
@@ -106,27 +117,24 @@ class Locacao {
   - dataDevolucaoPrevista: DateTime
   - dataDevolucaoReal: DateTime [0..1]
   - kmRetirada: int
-  - kmDevolucao: int [0..1]
+  - kmDevolucao: int 
   - status: StatusLocacao
-  + iniciar(func:Funcionario)
+  + emitirRecibo(): Recibo
+  + iniciar(Funcionario)
   + encerrar(kmFinal:int, dataDevolucao:DateTime)
   + calcularCustoFinal(): decimal
-  + gerarRecibo(): Recibo
 }
 
 class Pagamento {
+  - id: UUID
   - tipo: TipoPagamento
+  - valor: decimal
+  - data: DateTime
   - status: StatusPagamento
   + processar()
   + confirmar()
   + estornar()
-  + emitirRecibo(): Recibo
-}
-
-class Transacao {
-  - id: UUID
-  - valor: decimal
-  - data: DateTime
+  + emitirRecibo():
 }
 
 class Manutencao {
@@ -134,23 +142,9 @@ class Manutencao {
   - descricao: string
   - data: Date
   - custo: decimal
-  - status: boolean
   + registrar()
   + concluir()
   + gerarRelatorio(): string
-}
-
-class Endereco {
-  - rua: string
-  - numero: string
-  - cidade: string
-  - cep: string
-}
-
-class Recibo {
-  - id: UUID
-  - conteudo: string
-  + imprimir()
 }
 
 '========================
@@ -162,21 +156,18 @@ Pessoa <|-- Funcionario
 '========================
 ' COMPOSIÇÕES
 '========================
-Pessoa *-- Endereco : possui
 Cliente "1" *-- "0..*" Reserva : faz
-Locacao *-- Recibo : emite 
-Pagamento *-- Recibo : gera
 Reserva "1" *-- "0..1" Pagamento : possui
+Reserva "1" *-- "0..1" Locacao : gera
 Veiculo "1" *-- "0..*" Manutencao : recebe 
-Pagamento "1" *-- "1" Transacao : cria
-Locacao "1" *-- "1" Transacao : acessa
+Locacao "1" *-- "1" Recibo: emite
+
 
 '========================
 ' ASSOCIAÇÕES
 '========================
-Reserva "1" -- "1" Veiculo : reserva_de
-Reserva "1" -- "0..1" Locacao : gera
-Locacao "1" -- "1" Funcionario : registrada_por
+Reserva "1" -- "1" Veiculo : reserva de
+Locacao "1" -- "1" Funcionario : registrada por
 Locacao "1" -- "1" Veiculo : utiliza
 
 'ALT + D"
