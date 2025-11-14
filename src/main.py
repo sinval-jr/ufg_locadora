@@ -60,7 +60,8 @@ def menu_cliente():
     print("\n=== ÁREA DO CLIENTE ===")
     print("1. Novo Cadastro")
     print("2. Fazer Reserva")
-    print("3. Pagar Reserva")
+    print("3. Cancelar Reserva")
+    print("4. Pagar Reserva")
     print("0. Voltar")
     
     op = input("Escolha: ")
@@ -109,7 +110,26 @@ def menu_cliente():
         except Exception as e:
             print(f"❌ Erro: {e}")
 
-    elif op == "3":
+    elif op == "3": 
+        print("\n--- Cancelar Reserva ---")
+        try:
+            res_id = int(input("ID da Reserva a cancelar: "))
+            reserva = reserva_dao.buscar_por_id(res_id)
+            
+            if not reserva:
+                print("❌ Reserva não encontrada.")
+
+            else:
+                reserva.cancelar_reserva()
+                reserva_dao.salvar(reserva)
+                veiculo_dao.salvar(reserva._veiculo) 
+                
+                print(f"✅ Reserva {res_id} cancelada e veículo liberado com sucesso.")
+
+        except Exception as e:
+            print(f"❌ Erro ao cancelar: {e}")
+
+    elif op == "4":
         print("\n--- Pagamento de Reserva ---")
         try:
             res_id = int(input("ID da Reserva: "))

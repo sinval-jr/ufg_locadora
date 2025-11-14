@@ -69,6 +69,18 @@ class BaseDAO:
             FOREIGN KEY(reserva_id) REFERENCES reservas(id)
         )""")
 
+        #Tabela Manutenção
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS manutencao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                veiculo_id INTEGER NOT NULL,
+                descricao TEXT NOT NULL,
+                data_manutencao TEXT NOT NULL,
+                custo REAL NOT NULL,
+                status TEXT NOT NULL
+            )
+        ''')
+        
         # Tabela Pagamentos
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS pagamentos (
@@ -281,14 +293,15 @@ class ReservaDAO(BaseDAO):
         dt_devolucao = reserva.data_devolucao.isoformat()
         func_id = reserva._funcionario.id if reserva._funcionario else None
         
-        if reserva.id is None or (isinstance(reserva.id, int) and reserva.id < 1000): 
+        if reserva.id is None: 
             cursor.execute("""
                 INSERT INTO reservas (cliente_id, veiculo_id, funcionario_id, data_reserva, data_devolucao, valor_previsto, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (reserva._cliente.id, reserva._veiculo.id, func_id, dt_reserva, dt_devolucao, reserva.valor_total_previsto, reserva._status))
             reserva._id = cursor.lastrowid
         else:
-            cursor.execute("UPDATE reservas SET status=?, funcionario_id=? WHERE id=?", (reserva._status, func_id, reserva.id))
+            cursor.execute("UPDATE reservas SET status=?, funcionario_id=? WHERE id=?", 
+                           (reserva._status, func_id, reserva.id))
             
         conn.commit()
         conn.close()
@@ -370,3 +383,26 @@ class LocacaoDAO(BaseDAO):
                 
             return locacao
         return None
+    
+class ManutencaoDAO(BaseDAO):
+    def salvar(self, manutencao):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        dt_manut = manutencao._data_manutencao.isoformat()
+        
+        if manutencao._id is None:
+            cursor.execute('''
+                INSERT INTO manutencao (veiculo_id, descricao, data_manutencao, custo, status)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (manutencao._veiculo_id, manutencao._descricao, dt_manut, manutencao._custo, manutencao._status))
+            manutencao._id = cursor.lastrowid
+        else:
+            cursor.execute('''
+                UPDATE manutencao
+                SET veiculo_id=?, descricao=?, data_manutencao=?, custo=?, status=?
+                WHERE id=?
+            ''', (manutencao._veiculo_id, manutencao._descricao, dt_manut, manutencao._custo, manutencao._status, manutencao._id))
+        
+        conn.commit()
+        conn.close()
+        return manutencao

@@ -3,7 +3,7 @@ from datetime import date
 
 class Pessoa:
     def __init__(self, nome, telefone, email, rua, numero, cidade, estado, cep, id = None):
-        self._id = id 
+        self._id = id
         self._nome = nome
         self._telefone = telefone
         self._email = email
@@ -38,7 +38,10 @@ class Pessoa:
             self._email = novo_email
         else:
             raise ValueError("E-mail inválido.")
-        
+
+    def atualizar_contato(self, novo_telefone, novo_email):
+        self.telefone = novo_telefone
+        self.email = novo_email
 
 class Veiculo:
     def __init__(self, placa, modelo, status, kmatual, id = None):
@@ -164,7 +167,7 @@ class Cliente(Pessoa):
         else:
             raise ValueError("Tipo de CNH inválido.")
     
-    def alugar_veiculo(self, reserva):
+    def alugar_veiculo(self, veiculo):
         pass
     
     def devolver_veiculo(self, veiculo):
@@ -208,28 +211,19 @@ class Funcionario(Pessoa):
 
     def registrar_locacao(self, cliente, veiculo):
         pass
- 
-class Pagamento:
-    def __init__(self, metodo, valor, data_pagamento, tipo="inicial", id=None):
-        self._id = id
-        self._metodo = metodo
-        self._valor = valor
-        self._data_pagamento = data_pagamento
-        self._tipo = tipo  # "inicial" ou "fechamento"
 
-    def __repr__(self):
-        return f"Pagamento({self._tipo}: R$ {self._valor:.2f} via {self._metodo})"
+    def calcular_salario(self):
+        pass
+    
+    def atualizar_cargo(self, novo_cargo):
+        self._cargo = novo_cargo
 
 class Reserva:
-    def __init__(self, cliente: Cliente, veiculo: Veiculo,data_reserva, data_devolucao, valor, id = None):
+    def __init__(self, data_reserva, data_devolucao, valor, id = None):
         self._id = id
-        self._cliente = cliente  # Objeto Cliente
-        self._veiculo = veiculo  # Objeto Veiculo
         self._data_reserva = data_reserva
         self._data_devolucao = data_devolucao
-        self._valor_diarias = valor # Valor previsto apenas das diárias
-        self._pagamentos = [] # Lista para armazenar histórico de pagamentos
-        self._status = "pendente"
+        self._valor = valor
     @property
     def id(self):
         return self._id
@@ -270,30 +264,6 @@ class Reserva:
         else:
             raise ValueError("O valor da reserva não pode ser negativo.")
 
-    def adicionar_pagamento(self, pagamento: Pagamento):
-        self._pagamentos.append(pagamento)
-        print(f"Pagamento de R${pagamento._valor} registrado na reserva.")
-
-    def total_pago(self):
-        return sum(p._valor for p in self._pagamentos)
-    def iniciar_locacao(self):
-        # Regra de Negócio: Só inicia se pagou pelo menos as diárias (exemplo)
-        if self.total_pago() >= self._valor_diarias:
-            self._status = "locado"
-            self._veiculo.status = "alugado"
-            
-            # Cria o objeto Locação vinculando a esta reserva
-            nova_locacao = Locacao(
-                reserva=self,  # Passamos a PRÓPRIA reserva para a locação
-                data_retirada=date.today(),
-                km_retirada=self._veiculo.kmatual,
-                status="em andamento"
-            )
-            return nova_locacao
-        else:
-            raise ValueError(f"Pagamento insuficiente. Faltam R${self._valor_diarias - self.total_pago()}")
-        
-
     def confirmar_reserva(self):
         pass
 
@@ -304,17 +274,14 @@ class Reserva:
         pass
 
 class Locacao:
-    def __init__(self, reserva: Reserva, data_retirada, km_retirada, status, id=None):
+    def __init__(self, data_retirada, data_devolucao_prevista, km_retirada, status, id=None, data_devolucao_real = None, km_devolucao = None):
         self._id = id
-        self._reserva = reserva  # Vínculo com a reserva anterior
         self._data_retirada = data_retirada
+        self._data_devolucao_prevista = data_devolucao_prevista
+        self._data_devolucao_real = data_devolucao_real
         self._km_retirada = km_retirada
+        self._km_devolucao = km_devolucao
         self._status = status
-        
-        # Estes serão preenchidos no encerramento
-        self._data_devolucao_real = None
-        self._km_devolucao = None
-        self._custo_extra_km = 0.0
 
     @property
     def id(self):
@@ -370,37 +337,6 @@ class Locacao:
         else:
             raise ValueError("Novo status é inválido!")
 
-    def encerrar(self, km_atual, data_entrega, preco_por_km):
-        self._km_devolucao = km_atual
-        self._data_devolucao_real = data_entrega
-        
-        # 1. Calcular KM rodado
-        km_rodados = self._km_devolucao - self._km_retirada
-        
-        # 2. Calcular custo do KM (Regra de negócio simples)
-        custo_km = km_rodados * preco_por_km
-        self._custo_extra_km = custo_km
-        
-        # 3. Atualizar veículo
-        self._reserva._veiculo.kmatual = km_atual
-        self._reserva._veiculo.status = "disponivel"
-        self._status = "finalizada"
-        
-        print(f"--- Fechamento de Contrato ---")
-        print(f"Veículo: {self._reserva._veiculo.modelo}")
-        print(f"KM Rodados: {km_rodados}km (R${custo_km:.2f})")
-        print(f"Já pago na reserva: R${self._reserva.total_pago():.2f}")
-        
-        return custo_km
-    
-    def realizar_pagamento_final(self, metodo_pagamento):
-        if self._custo_extra_km > 0:
-            pagamento_extra = Pagamento(metodo_pagamento, self._custo_extra_km, date.today(), "fechamento")
-            self._reserva.adicionar_pagamento(pagamento_extra)
-            print("Pagamento final por KM realizado com sucesso!")
-        else:
-            print("Não há custo extra de KM a pagar.")
-
     def emitir_recibo(self):
         pass
 
@@ -412,48 +348,3 @@ class Locacao:
 
     def calcular_custo_final(self):
         pass
-
-
-if __name__ == "__main__":
-    # 1. Criação das Entidades Básicas
-    cliente1 = Cliente("João Silva", "12345678", "joao@gmail.com", "Rua A", 123, "Goiania", "GO", "74000000", "12345678901", "B")
-    veiculo1 = Veiculo("ABC-1234", "Fiat Mobi", "disponivel", 10000)
-
-    # 2. Cliente faz a RESERVA (Valor das diárias fixado em R$ 200,00)
-    print(">>> 1. Criando Reserva")
-    reserva = Reserva(
-        cliente=cliente1, 
-        veiculo=veiculo1, 
-        data_reserva=date(2023, 10, 1), 
-        data_devolucao=date(2023, 10, 5), 
-        valor=200.00 
-    )
-
-    # 3. Pagamento ANTES da locação (Sinal/Diárias)
-    print("\n>>> 2. Processando Pagamento Inicial")
-    pagto_inicial = Pagamento("pix", 200.00, date.today(), "sinal")
-    reserva.adicionar_pagamento(pagto_inicial)
-
-    # 4. Iniciar a Locação (Retirada do veículo)
-    # O sistema verifica se o pagamento inicial foi feito
-    try:
-        print("\n>>> 3. Retirando Veículo")
-        locacao = reserva.iniciar_locacao()
-        print(f"Locação iniciada! KM Inicial: {locacao._km_retirada}")
-    except ValueError as e:
-        print(f"Erro: {e}")
-
-    # --- O Cliente viaja e volta ---
-
-    # 5. Encerrar Locação (Devolução)
-    # Cliente andou 500km. Preço por KM é R$ 0.50
-    print("\n>>> 4. Devolvendo Veículo")
-    custo_km = locacao.encerrar(km_atual=10500, data_entrega=date.today(), preco_por_km=0.50)
-
-    # 6. Pagamento Final (Sobre o KM)
-    if custo_km > 0:
-        print("\n>>> 5. Pagamento do KM Excedente")
-        locacao.realizar_pagamento_final("cartao de credito")
-
-    print(f"\n>>> Status Final do Veículo: {veiculo1.status} | KM: {veiculo1.kmatual}")
-    print(f"Total Arrecadado na Reserva: R${reserva.total_pago():.2f}")

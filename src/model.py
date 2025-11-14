@@ -317,11 +317,9 @@ class Pagamento:
         return f"Pagamento({self._tipo}: R$ {self._valor:.2f} via {self._metodo})"
 
 class Reserva:
-    _proximo_id = 1
 
     def __init__(self, cliente: Cliente, veiculo: Veiculo, data_reserva, data_devolucao, funcionario: Funcionario = None, id=None):
-        self._id = id if id is not None else Reserva._proximo_id
-        Reserva._proximo_id += 1
+        self._id = id
         
         self._cliente = cliente
         self._veiculo = veiculo
@@ -404,6 +402,22 @@ class Reserva:
         else:
             restante = self._valor_total_previsto - self.total_pago()
             raise ValueError(f"Pagamento insuficiente. Faltam R${restante:.2f}")
+        
+    def cancelar_reserva(self):
+        """
+        Cancela a reserva se ela estiver pendente e libera o veículo.
+        """
+        if self._status != "pendente":
+            raise ValueError(f"Não é possível cancelar reserva com status '{self._status}'.")
+        
+        self._status = "cancelada"
+        
+        # Libera o veículo imediatamente na memória
+        if self._veiculo:
+            self._veiculo.status = "disponivel"
+            
+        print(f"Reserva {self._id} foi marcada como cancelada.")
+            
 
 class Locacao:
     _proximo_id = 1
