@@ -1,19 +1,25 @@
 import sys
+import os
 from datetime import date, datetime
 from model import Cliente, Funcionario, Veiculo, Pagamento
 from daos import BaseDAO, ClienteDAO, FuncionarioDAO, VeiculoDAO, ReservaDAO, LocacaoDAO, PagamentoDAO
 
-# --- SETUP INICIAL DOS DAOS ---
+# Procura por todos os locadora.db dentro da pasta do projeto (pode demorar pouco)
+for root, dirs, files in os.walk(os.getcwd()):
+    if "locadora.db" in files:
+        print("found:", os.path.join(root, "locadora.db"))
+
+# --- SETUP INICIAL DOS DAOS    ---
 base_dao = BaseDAO()
 base_dao.criar_tabelas()
 
 veiculo_dao = VeiculoDAO()
-cliente_dao = ClienteDAO()
-funcionario_dao = FuncionarioDAO()
+cliente_dao = ClienteDAO("locadora.db")
+funcionario_dao = FuncionarioDAO("locadora.db")
 pagamento_dao = PagamentoDAO()
 
-reserva_dao = ReservaDAO(cliente_dao, veiculo_dao, funcionario_dao, pagamento_dao)
-locacao_dao = LocacaoDAO(reserva_dao)
+reserva_dao = ReservaDAO(cliente_dao, veiculo_dao, funcionario_dao, pagamento_dao, "locadora.db")
+locacao_dao = LocacaoDAO(reserva_dao, "locadora.db")
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def input_data(mensagem):
@@ -60,9 +66,7 @@ def menu_cliente():
     print("\n=== ÁREA DO CLIENTE ===")
     print("1. Novo Cadastro")
     print("2. Fazer Reserva")
-    print("3. Cancelar Reserva")
-    print("4. Pagar Reserva")
-    print("5. Pagar Locação")
+    print("3. Pagar Reserva")
     print("0. Voltar")
     
     op = input("Escolha: ")
@@ -111,26 +115,7 @@ def menu_cliente():
         except Exception as e:
             print(f"❌ Erro: {e}")
 
-    elif op == "3": 
-        print("\n--- Cancelar Reserva ---")
-        try:
-            res_id = int(input("ID da Reserva a cancelar: "))
-            reserva = reserva_dao.buscar_por_id(res_id)
-            
-            if not reserva:
-                print("❌ Reserva não encontrada.")
-
-            else:
-                reserva.cancelar_reserva()
-                reserva_dao.salvar(reserva)
-                veiculo_dao.salvar(reserva._veiculo) 
-                
-                print(f"✅ Reserva {res_id} cancelada e veículo liberado com sucesso.")
-
-        except Exception as e:
-            print(f"❌ Erro ao cancelar: {e}")
-
-    elif op == "4":
+    elif op == "3":
         print("\n--- Pagamento de Reserva ---")
         try:
             res_id = int(input("ID da Reserva: "))
@@ -202,12 +187,12 @@ def menu_funcionario():
             
             if locacao:
                 km_atual = int(input("KM atual do veículo: "))
-                metodo_pgto = input("Método de pagamento final (pix, cartao): ")
-                func.finalizar_locacao(locacao, km_atual, metodo_pgto)
+                func.finalizar_locacao(locacao, km_atual, "dinheiro")
                 
+                # Salvar atualizações
                 locacao_dao.salvar(locacao)
-                veiculo_dao.salvar(locacao._reserva._veiculo)
-                reserva_dao.salvar(locacao._reserva)
+                veiculo_dao.salvar(locacao._reserva._veiculo) # Atualiza status e km
+                
                 print("✅ Locação Finalizada e Veículo Liberado.")
             else:
                 print("Locação não encontrada.")
@@ -224,8 +209,6 @@ def menu_funcionario():
         v = Veiculo(placa, modelo, "disponivel", km, diaria, 0.50)
         veiculo_dao.salvar(v)
         print(f"✅ Veículo {v.modelo} cadastrado com ID {v.id}")
-    
-    #elif op == "4":
 
 def menu_veiculo():
     print("\n=== GESTÃO DE VEÍCULOS ===")
@@ -248,7 +231,7 @@ def menu_veiculo():
 
 if __name__ == "__main__":
     if not funcionario_dao.buscar_por_id(1):
-        admin = Funcionario("Admin", "000", "admin@loc.com", "Rua A", 1, "City", "UF", "000", "MAT01", "gerente", 5000)
+        admin = Funcionario("Admin", "000", "admin@loc.com", "Rua A", 1, "City", "UF", "000", "MAT01", "Gerente", 5000)
         funcionario_dao.salvar(admin)
         print("⚠️ Funcionário ADMIN criado automaticamente (ID: 1)")
 
