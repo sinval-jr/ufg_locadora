@@ -62,6 +62,7 @@ def menu_cliente():
     print("2. Fazer Reserva")
     print("3. Cancelar Reserva")
     print("4. Pagar Reserva")
+    print("5. Pagar Locação")
     print("0. Voltar")
     
     op = input("Escolha: ")
@@ -201,12 +202,12 @@ def menu_funcionario():
             
             if locacao:
                 km_atual = int(input("KM atual do veículo: "))
-                func.finalizar_locacao(locacao, km_atual, "dinheiro")
+                metodo_pgto = input("Método de pagamento final (pix, cartao): ")
+                func.finalizar_locacao(locacao, km_atual, metodo_pgto)
                 
-                # Salvar atualizações
                 locacao_dao.salvar(locacao)
-                veiculo_dao.salvar(locacao._reserva._veiculo) # Atualiza status e km
-                
+                veiculo_dao.salvar(locacao._reserva._veiculo)
+                reserva_dao.salvar(locacao._reserva)
                 print("✅ Locação Finalizada e Veículo Liberado.")
             else:
                 print("Locação não encontrada.")
@@ -223,6 +224,8 @@ def menu_funcionario():
         v = Veiculo(placa, modelo, "disponivel", km, diaria, 0.50)
         veiculo_dao.salvar(v)
         print(f"✅ Veículo {v.modelo} cadastrado com ID {v.id}")
+    
+    #elif op == "4":
 
 def menu_veiculo():
     print("\n=== GESTÃO DE VEÍCULOS ===")

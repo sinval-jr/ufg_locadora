@@ -420,11 +420,9 @@ class Reserva:
             
 
 class Locacao:
-    _proximo_id = 1
     
     def __init__(self, reserva: Reserva, data_retirada, km_retirada, status, id=None):
-        self._id = id if id is not None else Locacao._proximo_id
-        Locacao._proximo_id += 1
+        self._id = id
         
         self._reserva = reserva
         self._data_retirada = data_retirada

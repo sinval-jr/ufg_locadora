@@ -345,7 +345,7 @@ class LocacaoDAO(BaseDAO):
         dt_ret = locacao._data_retirada.isoformat()
         dt_dev_real = locacao._data_devolucao_real.isoformat() if locacao._data_devolucao_real else None
         
-        if locacao.id is None or (isinstance(locacao.id, int) and locacao.id < 1000):
+        if locacao.id is None:
             cursor.execute("""
                 INSERT INTO locacoes (reserva_id, data_retirada, km_retirada, data_devolucao_real, km_devolucao, status)
                 VALUES (?, ?, ?, ?, ?, ?)
