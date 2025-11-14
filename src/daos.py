@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import date, datetime
-from model import Cliente, Funcionario, Veiculo, Reserva, Locacao, Pagamento
+from model import Cliente, Funcionario, Veiculo, Reserva, Locacao, Pagamento,Manutencao
 
 # -----------------------------------------------------------------
 # BASE DAO (Gerencia Conexão e Tabelas)
@@ -75,7 +75,8 @@ class BaseDAO:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 veiculo_id INTEGER NOT NULL,
                 descricao TEXT NOT NULL,
-                data_manutencao TEXT NOT NULL,
+                data_inicio TEXT,
+                data_fim TEXT,
                 custo REAL NOT NULL,
                 status TEXT NOT NULL
             )
@@ -385,24 +386,53 @@ class LocacaoDAO(BaseDAO):
         return None
     
 class ManutencaoDAO(BaseDAO):
-    def salvar(self, manutencao):
+    def __init__(self, veiculo_dao: VeiculoDAO):
+        super().__init__()
+        self.veiculo_dao = veiculo_dao # Necessário para re-hidratar o objeto Veiculo
+
+    def salvar(self, manutencao: Manutencao):
         conn = self.get_connection()
         cursor = conn.cursor()
-        dt_manut = manutencao._data_manutencao.isoformat()
         
-        if manutencao._id is None:
-            cursor.execute('''
-                INSERT INTO manutencao (veiculo_id, descricao, data_manutencao, custo, status)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (manutencao._veiculo_id, manutencao._descricao, dt_manut, manutencao._custo, manutencao._status))
+        # --- CORREÇÃO AQUI ---
+        # Acessando os atributos privados (ex: _data_inicio) diretamente
+        # para evitar o erro de @property faltante.
+        dt_ini = manutencao._data_inicio.isoformat() 
+        dt_fim = manutencao._data_fim.isoformat() if manutencao._data_fim else None
+        
+        if manutencao.id is None:
+            # Inserir
+            cursor.execute("""
+                INSERT INTO manutencao (veiculo_id, descricao, data_inicio, data_fim, custo, status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (manutencao._veiculo.id, manutencao._descricao, dt_ini, dt_fim, manutencao._custo, manutencao._status))
             manutencao._id = cursor.lastrowid
         else:
-            cursor.execute('''
-                UPDATE manutencao
-                SET veiculo_id=?, descricao=?, data_manutencao=?, custo=?, status=?
+            # Atualizar (ex: ao concluir)
+            cursor.execute("""
+                UPDATE manutencao 
+                SET data_fim=?, custo=?, status=?
                 WHERE id=?
-            ''', (manutencao._veiculo_id, manutencao._descricao, dt_manut, manutencao._custo, manutencao._status, manutencao._id))
-        
+            """, (dt_fim, manutencao._custo, manutencao._status, manutencao.id))
+            
         conn.commit()
         conn.close()
         return manutencao
+
+    def buscar_em_andamento_por_veiculo(self, veiculo_id: int):
+        """ Encontra a manutenção ATIVA para um veículo. """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM manutencao WHERE veiculo_id=? AND status='em andamento'", (veiculo_id,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            # Re-hidratação
+            veiculo = self.veiculo_dao.buscar_por_id(row[1])
+            dt_ini = date.fromisoformat(row[3])
+            
+            man = Manutencao(veiculo, row[2], dt_ini, row[5], id=row[0])
+            man._status = row[6] # Garante status
+            return man
+        return None

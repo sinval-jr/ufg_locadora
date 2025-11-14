@@ -1,7 +1,7 @@
 import sys
 from datetime import date, datetime
-from model import Cliente, Funcionario, Veiculo, Pagamento
-from daos import BaseDAO, ClienteDAO, FuncionarioDAO, VeiculoDAO, ReservaDAO, LocacaoDAO, PagamentoDAO
+from model import Cliente, Funcionario, Veiculo, Pagamento, Manutencao
+from daos import BaseDAO, ClienteDAO, FuncionarioDAO, VeiculoDAO, ReservaDAO, LocacaoDAO, PagamentoDAO, ManutencaoDAO
 
 # --- SETUP INICIAL DOS DAOS ---
 base_dao = BaseDAO()
@@ -11,6 +11,7 @@ veiculo_dao = VeiculoDAO()
 cliente_dao = ClienteDAO()
 funcionario_dao = FuncionarioDAO()
 pagamento_dao = PagamentoDAO()
+manutencao_dao = ManutencaoDAO(veiculo_dao)
 
 reserva_dao = ReservaDAO(cliente_dao, veiculo_dao, funcionario_dao, pagamento_dao)
 locacao_dao = LocacaoDAO(reserva_dao)
@@ -26,7 +27,7 @@ def input_data(mensagem):
             print("❌ Formato inválido! Tente novamente.")
 
 def listar_veiculos_disponiveis():
-    print("\n--- Veículos Disponíveis ---")
+    print("\n--- Veículos Disponíveis para Locação ---")
     conn = veiculo_dao.get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT id, modelo, placa, valor_diaria FROM veiculos WHERE status='disponivel'")
@@ -34,12 +35,31 @@ def listar_veiculos_disponiveis():
     conn.close()
     
     if not veiculos:
-        print("Nenhum veículo disponível.")
-        return []
+        print("Nenhum veículo disponível no momento.")
+        return [] # Retorna lista vazia
     
     for v in veiculos:
         print(f"[ID: {v[0]}] {v[1]} - {v[2]} (R$ {v[3]:.2f}/dia)")
+    
     return [v[0] for v in veiculos]
+
+def listar_frota_completa():
+    print("\n--- Frota Completa de Veículos ---")
+    conn = veiculo_dao.get_connection()
+    cursor = conn.cursor()
+    # Ordena por status para ver os disponíveis primeiro
+    cursor.execute("SELECT id, modelo, placa, status FROM veiculos ORDER BY status")
+    veiculos = cursor.fetchall()
+    conn.close()
+    
+    if not veiculos:
+        print("Nenhum veículo cadastrado.")
+        return
+    
+    print(f"{'ID':<4} | {'Modelo':<15} | {'Placa':<10} | {'Status'}")
+    print("-" * 45)
+    for v in veiculos:
+        print(f"{v[0]:<4} | {v[1]:<15} | {v[2]:<10} | {v[3].upper()}")
 
 def selecionar_funcionario():
     """Simula login de um funcionário (pega o primeiro do banco ou pede ID)"""
@@ -102,9 +122,8 @@ def menu_cliente():
             
             reserva = cliente.fazer_reserva(veiculo, dt_ini, dt_fim)
             
-            # Persistir mudanças
             reserva_dao.salvar(reserva)
-            veiculo_dao.salvar(veiculo) # Atualiza status para 'reservado'
+            veiculo_dao.salvar(veiculo) 
             
             print(f"✅ Reserva salva! ID: {reserva.id}. Valor previsto: R$ {reserva.valor_total_previsto:.2f}")
             
@@ -141,19 +160,11 @@ def menu_cliente():
             
             print(f"Valor Pendente: R$ {reserva.valor_total_previsto:.2f}")
             val = float(input("Valor a pagar: "))
-            
-            # 1. Cria o objeto Pagamento em memória
             pgto = Pagamento("pix", val, date.today(), "reserva")
-            
-            # 2. Adiciona na lista da reserva (Lógica de Negócio)
+        
             reserva.adicionar_pagamento(pgto)
             
-            # 3. SALVA NO BANCO DE DADOS (AQUI É A MUDANÇA)
-            # Salvamos o pagamento vinculando-o ao ID da reserva
             pagamento_dao.salvar(pgto, reserva.id)
-            
-            # Opcional: Salvar a reserva também para garantir que se o status 
-            # mudou (ex: pagou tudo), o status novo fique salvo.
             reserva_dao.salvar(reserva)
 
             print(f"✅ Pagamento de R${val:.2f} registrado no Banco de Dados!")
@@ -188,7 +199,7 @@ def menu_funcionario():
                 
                 if locacao:
                     locacao_dao.salvar(locacao)
-                    veiculo_dao.salvar(reserva._veiculo) # Atualiza status 'alugado'
+                    veiculo_dao.salvar(reserva._veiculo) 
                     print(f"✅ Locação iniciada! ID Locação: {locacao.id}")
             else:
                 print("Reserva não encontrada.")
@@ -229,20 +240,64 @@ def menu_funcionario():
 
 def menu_veiculo():
     print("\n=== GESTÃO DE VEÍCULOS ===")
-    print("1. Listar Todos")
-    print("2. Adicionar Manutenção")
+    print("1. Listar Frota Completa")
+    print("2. Enviar Veículo para Manutenção")
+    print("3. Concluir Manutenção de Veículo")
     print("0. Voltar")
     
     op = input("Escolha: ")
     
     if op == "1":
-        listar_veiculos_disponiveis()
+        listar_frota_completa()
         
     elif op == "2":
-        print("Funcionalidade de manutenção (simulação):")
-        v_id = input("ID do Veículo: ")
-        desc = input("Descrição da manutenção: ")
-        print(f"✅ Manutenção '{desc}' registrada para o veículo {v_id}.")
+        print("\n--- Enviar para Manutenção ---")
+        try:
+            v_id = int(input("ID do Veículo a ser enviado: "))
+            veiculo = veiculo_dao.buscar_por_id(v_id)
+            
+            if not veiculo:
+                print("❌ Veículo não encontrado.")
+                return
+
+            desc = input("Descrição do serviço: ")
+            manutencao = Manutencao(veiculo, desc, date.today())
+            
+            manutencao.iniciar() 
+            
+            manutencao_dao.salvar(manutencao)
+            veiculo_dao.salvar(veiculo)   
+            
+            print(f"✅ Manutenção (ID: {manutencao.id}) registrada. Veículo está 'em manutencao'.")
+
+        except Exception as e:
+            print(f"❌ Erro ao iniciar manutenção: {e}")
+
+    elif op == "3":
+        print("\n--- Concluir Manutenção ---")
+        try:
+            v_id = int(input("ID do Veículo que retornou: "))
+            manutencao = manutencao_dao.buscar_em_andamento_por_veiculo(v_id)
+            
+            if not manutencao:
+                print("❌ Não foi encontrada manutenção 'em andamento' para este veículo.")
+                return
+
+            print(f"Manutenção encontrada (ID: {manutencao.id}): {manutencao._descricao}")
+            # ---------------------
+            
+            custo_final = float(input("Digite o custo final (R$): "))
+            
+            manutencao.concluir(date.today(), custo_final)
+            
+            manutencao_dao.salvar(manutencao) 
+            veiculo_dao.salvar(manutencao._veiculo) # Corrigido para ._veiculo
+            
+            print("✅ Manutenção finalizada com sucesso!")
+
+        except Exception as e:
+            print(f"❌ Erro ao concluir manutenção: {e}")
+
 
 # --- LOOP PRINCIPAL ---
 
