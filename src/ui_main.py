@@ -1,46 +1,35 @@
+from daos import ClienteDAO, FuncionarioDAO, BaseDAO
+from cliente_ui import abrir_tela_cliente
+from funcionario_ui import abrir_tela_funcionario
+from model import Cliente
 import customtkinter as ctk
 from tkinter import messagebox as tkmb
+
+CAMINHO_DB = r"C:\Users\chron\OneDrive\Documentos\VsCode\Trabalho POO\locadora.db"
+
+#Conexão com o banco de dados
+base = BaseDAO(CAMINHO_DB)
+import os
+
+print("=== DEBUG DATABASE ===")
+print("Caminho recebido:", CAMINHO_DB)
+print("Abs path:", os.path.abspath(CAMINHO_DB))
+print("Existe?", os.path.exists(CAMINHO_DB))
+print("Tamanho do arquivo:", os.path.getsize(CAMINHO_DB) if os.path.exists(CAMINHO_DB) else "N/A")
+
+conn = base.get_connection()
+cursor = conn.cursor()
+
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+print("Tabelas encontradas:", cursor.fetchall())
+
+base.criar_tabelas()
+cliente_dao = ClienteDAO(CAMINHO_DB)
+funcionario_dao = FuncionarioDAO(CAMINHO_DB)
 
 #Temas
 ctk.set_appearance_mode("dark")            
 ctk.set_default_color_theme("dark-blue")   
-
-#Usuarios Exemplo, trocar por dados na tabela
-usuarios = {
-    # trocar depois o usuário do funcionário para matrícula
-    "joao@aaa.com": {"senha": "1234", "tipo": "cliente"},
-    "pedro@bbb.com": {"senha": "1230489", "tipo": "funcionario"}
-}
-
-
-def abrir_tela_cliente(app):
-    """Abre a interface do cliente"""
-    app.destroy()  # Fecha a janela anterior
-    janela_cliente = ctk.CTk()
-    janela_cliente.title("Cliente")
-    janela_cliente.geometry("400x350")
-
-    ctk.CTkLabel(janela_cliente, text="Bem-vindo, Cliente!", font=("Inter", 18, "bold")).pack(pady=20)
-    ctk.CTkButton(janela_cliente, text="Fazer Reserva", width=200).pack(pady=10)
-    ctk.CTkButton(janela_cliente, text="Fazer Pagamento", width=200).pack(pady=10)
-    ctk.CTkButton(janela_cliente, text="Sair", width=100, fg_color="gray", command=janela_cliente.destroy).pack(pady=20)
-    janela_cliente.mainloop()
-
-
-def abrir_tela_funcionario(app):
-    #Fecha a janaela anterior
-    app.destroy()
-    janela_func = ctk.CTk()
-    janela_func.title("Funcionário")
-    janela_func.geometry("400x350")
-
-    #Textos e botões
-    ctk.CTkLabel(janela_func, text="Bem-vindo, Funcionário!", font=("Inter", 18, "bold")).pack(pady=20)
-    ctk.CTkButton(janela_func, text="Registrar Locação", width=220).pack(pady=10)
-    ctk.CTkButton(janela_func, text="Sair", width=100, fg_color="gray", command=janela_func.destroy).pack(pady=20)
-    janela_func.mainloop()
-
-
 
 def cadastrar_cliente(app):
     # Fecha a janela anterior
@@ -78,21 +67,35 @@ def cadastrar_cliente(app):
     def salvar_cadastro():
         dados = {campo: entrada.get() for campo, entrada in entradas.items()}
         # Verifica se há campos vazios
-        if any(v == "" for v in dados.values()):
+        if any(v.strip() == "" for v in dados.values()):
             tkmb.showwarning("Campos vazios", "Preencha todos os campos antes de continuar.")
             return
-        
-        # Simulação de cadastro (no futuro, integrar ao banco SQLite)
-        usuarios[dados["Email"]] = {"senha": dados["CPF"], "tipo": "cliente"}
-        tkmb.showinfo("Sucesso", "Cliente cadastrado com sucesso!")
+            # Cria e insere a pessoa
+        try:
+            cliente = Cliente(
+                dados["Nome"],
+                dados["Telefone"],
+                dados["Email"],
+                dados["Rua"],
+                int(dados["Número"]),
+                dados["Cidade"],
+                dados["Estado"],
+                dados["CEP"],
+                dados["CPF"],
+                dados["CNH"]
+            )
 
+            cliente_dao.salvar(cliente)
+        except Exception as e:
+            tkmb.showerror("Erro", f"Erro ao salvar: {e}")
+            return
+        
+        tkmb.showinfo("Sucesso", "Cliente cadastrado com sucesso!")
         cadastro.destroy()
         abrir_login()
-
     # Botões
     ctk.CTkButton(scroll_frame, text="Cadastrar", fg_color="green", command=salvar_cadastro).pack(pady=20)
-    ctk.CTkButton(scroll_frame, text="Cancelar", fg_color="gray",
-                  command=lambda: [cadastro.destroy(), abrir_login()]).pack(pady=5)
+    ctk.CTkButton(scroll_frame, text="Cancelar", fg_color="gray",command=lambda: [cadastro.destroy(), abrir_login()]).pack(pady=5)
 
     cadastro.mainloop()
 
@@ -114,7 +117,7 @@ def abrir_login():
     user_entry = ctk.CTkEntry(master=frame, placeholder_text="Usuário")
     user_entry.pack(pady=10, padx=10)
 
-    user_pass = ctk.CTkEntry(master=frame, placeholder_text="CPF", show="*")
+    user_pass = ctk.CTkEntry(master=frame, placeholder_text="Senha")
     user_pass.pack(pady=10, padx=10)
 
     #Verifica se o Login esta correto
@@ -122,22 +125,45 @@ def abrir_login():
         usuario = user_entry.get()
         senha = user_pass.get()
 
-        if usuario in usuarios and senha == usuarios[usuario]["senha"]:
-            tipo = usuarios[usuario]["tipo"]
-            tkmb.showinfo("Login bem-sucedido", f"Bem-vindo, {tipo.capitalize()}!")
+        conn = base.get_connection()
+        cursor = conn.cursor()
 
-            if tipo == "cliente":
-                abrir_tela_cliente(app)
-            else:
-                abrir_tela_funcionario(app)
-        else:
-            tkmb.showerror("Falha no login", "Usuário ou senha incorretos.")
+        # Verifica se é cliente (usa email e CPF)
+        cursor.execute("""
+            SELECT p.nome, c.cpf 
+            FROM pessoa p
+            JOIN cliente c ON c.pessoa_id = p.pessoa_id
+            WHERE p.email = ? AND c.cpf = ?
+        """, (usuario, senha))
+        cliente = cursor.fetchone()
+
+
+        if cliente:
+            tkmb.showinfo("Login", f"Bem-vindo, {cliente[0]} (Cliente)")
+            abrir_tela_cliente(app, cliente[0])
+            return
+
+        # Verifica se é funcionário (usa email e matricula)
+        cursor.execute("""
+            SELECT p.nome, f.matricula 
+            FROM pessoa p
+            JOIN funcionario f ON f.pessoa_id = p.pessoa_id
+            WHERE p.email = ? AND f.matricula = ?
+        """, (usuario, senha))
+        funcionario = cursor.fetchone()
+
+        if funcionario:
+            tkmb.showinfo("Login", f"Bem-vindo, {funcionario[0]} (Funcionário)")
+            abrir_tela_funcionario(app, funcionario[0])
+            return
+
+        tkmb.showerror("Erro", "Usuário ou senha incorretos.")
 
     ctk.CTkButton(master=frame, text="Entrar", command=login).pack(pady=10)
     ctk.CTkButton(master=frame, text="Cadastrar Cliente", fg_color="#1E8449", hover_color="#117A37",
                   command=lambda: cadastrar_cliente(app)).pack(pady=10)
     app.mainloop()
 
-#Exe
+#abrir janela
 if __name__ == "__main__":
     abrir_login()
