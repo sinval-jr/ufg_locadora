@@ -216,8 +216,7 @@ class Cliente(Pessoa):
             cliente=self,
             veiculo=veiculo,
             data_reserva=data_inicio,
-            data_devolucao=data_fim,
-            funcionario=None  # Nenhum funcionário envolvido na criação
+            data_devolucao=data_fim
         )
         
         # 3. Mudança de Estado
@@ -262,28 +261,6 @@ class Funcionario(Pessoa):
 
     # --- MÉTODOS DE NEGÓCIO DO FUNCIONÁRIO ---
 
-    def criar_reserva(self, cliente: Cliente, veiculo: Veiculo, data_inicio: date, data_fim: date):
-        """
-        Ação do funcionário para registrar uma nova reserva (ex: pelo telefone).
-        """
-        print(f"--- Atendente {self.nome} (Mat: {self.matricula}) iniciando reserva ---")
-        
-        if veiculo.status != "disponivel":
-            raise ValueError(f"ERRO: O veículo {veiculo.modelo} não está disponível (Status: {veiculo.status}).")
-        
-        nova_reserva = Reserva(
-            cliente=cliente,
-            veiculo=veiculo,
-            data_reserva=data_inicio,
-            data_devolucao=data_fim,
-            funcionario=self 
-        )
-        
-        veiculo.status = "reservado"
-        print(f"✅ Reserva [ID: {nova_reserva.id}] criada para {cliente.nome}.")
-        print(f"   Veículo {veiculo.modelo} agora está 'reservado'.")
-        return nova_reserva
-
     def entregar_veiculo(self, reserva: 'Reserva'):
         """
         Ação do funcionário para entregar o carro ao cliente.
@@ -325,7 +302,7 @@ class Funcionario(Pessoa):
         else:
             print("   Sem custos extras de quilometragem.")
             
-        locacao.emitir_recibo()
+        locacao.emitir_recibo(funcionario_final=self)
 
 # -----------------------------------------------------------------
 # CLASSES DE TRANSAÇÃO (PAGAMENTO, RESERVA, LOCAÇÃO)
@@ -343,12 +320,11 @@ class Pagamento:
 
 class Reserva:
 
-    def __init__(self, cliente: Cliente, veiculo: Veiculo, data_reserva, data_devolucao, funcionario: Funcionario = None, id=None):
+    def __init__(self, cliente: Cliente, veiculo: Veiculo, data_reserva, data_devolucao, id=None):
         self._id = id
         
         self._cliente = cliente
         self._veiculo = veiculo
-        self._funcionario = funcionario # Pode ser None
         self._data_reserva = data_reserva
         self._data_devolucao = data_devolucao
         
@@ -488,11 +464,11 @@ class Locacao:
         else:
             print("   Sem saldo devedor para encerramento.")
 
-    def emitir_recibo(self):
+    def emitir_recibo(self, funcionario_final: Funcionario):
         cliente = self._reserva._cliente
         veiculo = self._reserva._veiculo
         pagamentos = self._reserva._pagamentos
-        funcionario = self._reserva._funcionario
+        funcionario = funcionario_final
         
         print("\n" + "="*45)
         print(f"{'RECIBO FINAL DE LOCAÇÃO':^45}")

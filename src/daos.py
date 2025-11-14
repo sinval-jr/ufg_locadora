@@ -1,3 +1,4 @@
+
 import sqlite3
 import os
 from datetime import date, datetime
@@ -40,7 +41,7 @@ class BaseDAO:
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS cliente (
             pessoa_id INTEGER PRIMARY KEY,
-            cpf TEXT UNIQUE NOT NULL,
+            cpf TEXT NOT NULL,
             cnh TEXT NOT NULL,
             FOREIGN KEY(pessoa_id) REFERENCES pessoa(pessoa_id) ON DELETE CASCADE
         )""")
@@ -67,18 +68,6 @@ class BaseDAO:
             preco_por_km REAL DEFAULT 0.0
         )""")
 
-        # manutencao
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS manutencao (
-            manutencao_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            veiculo_id INTEGER NOT NULL,
-            descricao TEXT NOT NULL,
-            data_manutencao TEXT NOT NULL,
-            custo REAL NOT NULL,
-            status TEXT,
-            FOREIGN KEY(veiculo_id) REFERENCES veiculo(veiculo_id) ON DELETE CASCADE
-        )""")
-
         #Tabela Manutenção
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS manutencao (
@@ -92,7 +81,7 @@ class BaseDAO:
             )
         ''')
         
-        # Tabela Pagamentos
+        # Tabela Reserva
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS reserva (
             reserva_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -293,11 +282,10 @@ class FuncionarioDAO(PessoaDAO):
 # RESERVA / LOCACAO DAO
 # -----------------------------------------------------------------
 class ReservaDAO(BaseDAO):
-    def __init__(self, cliente_dao, veiculo_dao, funcionario_dao, pagamento_dao, db_name="locadora.db"):
+    def __init__(self, cliente_dao, veiculo_dao, pagamento_dao, db_name="locadora.db"):
         super().__init__(db_name)
         self.cliente_dao = cliente_dao
         self.veiculo_dao = veiculo_dao
-        self.funcionario_dao = funcionario_dao
         self.pagamento_dao = pagamento_dao
 
     def salvar(self, reserva: Reserva):
@@ -306,7 +294,6 @@ class ReservaDAO(BaseDAO):
 
         dt_ini = reserva.data_reserva.isoformat()
         dt_fim = reserva.data_devolucao.isoformat()
-        func_id = reserva._funcionario.id if reserva._funcionario else None
 
         if getattr(reserva, "id", None) is None:
             cursor.execute("""
@@ -315,7 +302,7 @@ class ReservaDAO(BaseDAO):
             """, (reserva._cliente.id, reserva._veiculo.id, dt_ini, dt_fim, reserva._status))
             reserva._id = cursor.lastrowid
         else:
-            cursor.execute("UPDATE reserva SET status=?, funcionario_id=? WHERE reserva_id=?", (reserva._status, func_id, reserva.id))
+            cursor.execute("UPDATE reserva SET status=? WHERE reserva_id=?", (reserva._status, reserva.id))
 
         conn.commit()
         conn.close()
@@ -336,7 +323,7 @@ class ReservaDAO(BaseDAO):
             veiculo = self.veiculo_dao.buscar_por_id(row[2])
             dt_ini = date.fromisoformat(row[3])
             dt_fim = date.fromisoformat(row[4])
-            reserva = Reserva(cliente, veiculo, dt_ini, dt_fim, funcionario=None, id=row[0])
+            reserva = Reserva(cliente, veiculo, dt_ini, dt_fim, id=row[0])
             reserva._status = row[5] if len(row) > 5 else "pendente"
             reserva._pagamentos = self.pagamento_dao.listar_por_reserva(reserva.id)
             return reserva

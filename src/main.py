@@ -19,7 +19,7 @@ funcionario_dao = FuncionarioDAO("locadora.db")
 pagamento_dao = PagamentoDAO()
 manutencao_dao = ManutencaoDAO(veiculo_dao)
 
-reserva_dao = ReservaDAO(cliente_dao, veiculo_dao, funcionario_dao, pagamento_dao, "locadora.db")
+reserva_dao = ReservaDAO(cliente_dao, veiculo_dao, pagamento_dao, "locadora.db")
 locacao_dao = LocacaoDAO(reserva_dao, "locadora.db")
 
 # --- FUNÇÕES UTILITÁRIAS ---
@@ -36,7 +36,7 @@ def listar_veiculos_disponiveis():
     print("\n--- Veículos Disponíveis para Locação ---")
     conn = veiculo_dao.get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, modelo, placa, valor_diaria FROM veiculos WHERE status='disponivel'")
+    cursor.execute("SELECT veiculo_id, modelo, placa, valor_diaria FROM veiculo WHERE status='disponivel'")
     veiculos = cursor.fetchall()
     conn.close()
     
@@ -54,7 +54,7 @@ def listar_frota_completa():
     conn = veiculo_dao.get_connection()
     cursor = conn.cursor()
     # Ordena por status para ver os disponíveis primeiro
-    cursor.execute("SELECT id, modelo, placa, status FROM veiculos ORDER BY status")
+    cursor.execute("SELECT veiculo_id, modelo, placa, status FROM veiculo ORDER BY status")
     veiculos = cursor.fetchall()
     conn.close()
     
@@ -98,7 +98,7 @@ def menu_cliente():
         cnh = input("CNH (B): ")
         tel = input("Telefone: ")
         email = input("Email: ")
-        # Endereço fixo para simplificar o exemplo
+
         cli = Cliente(nome, tel, email, "Rua Cliente", 0, "Cidade", "UF", "00000", cpf, cnh)
         try:
             cliente_dao.salvar(cli)
@@ -112,27 +112,29 @@ def menu_cliente():
             cli_id = int(input("Digite seu ID de Cliente: "))
             cliente = cliente_dao.buscar_por_id(cli_id)
             if not cliente:
-                print("Cliente não encontrado.")
+                print("❌ Cliente não encontrado.")
                 return
 
-            ids_validos = listar_veiculos_disponiveis()
-            if not ids_validos: return
+            ids_validos = listar_veiculos_disponiveis() 
+            if not ids_validos: 
+                print("❌ Não há veículos disponíveis para reserva.")
+                return
             
             v_id = int(input("Digite o ID do veículo desejado: "))
             veiculo = veiculo_dao.buscar_por_id(v_id)
             
             dt_ini = input_data("Data de Retirada")
             dt_fim = input_data("Data de Devolução")
-            
+
             reserva = cliente.fazer_reserva(veiculo, dt_ini, dt_fim)
             
             reserva_dao.salvar(reserva)
             veiculo_dao.salvar(veiculo) 
             
-            print(f"✅ Reserva salva! ID: {reserva.id}. Valor previsto: R$ {reserva.valor_total_previsto:.2f}")
+            print(f"✅ Reserva salva! ID: {reserva.id}.")
             
         except Exception as e:
-            print(f"❌ Erro: {e}")
+            print(f"❌ Erro ao criar reserva: {e}")
 
     elif op == "3":
         print("\n--- Pagamento de Reserva ---")
@@ -200,9 +202,9 @@ def menu_funcionario():
                 km_atual = int(input("KM atual do veículo: "))
                 func.finalizar_locacao(locacao, km_atual, "dinheiro")
                 
-                # Salvar atualizações
+                
                 locacao_dao.salvar(locacao)
-                veiculo_dao.salvar(locacao._reserva._veiculo) # Atualiza status e km
+                veiculo_dao.salvar(locacao._reserva._veiculo) 
                 
                 print("✅ Locação Finalizada e Veículo Liberado.")
             else:
