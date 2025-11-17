@@ -1,4 +1,6 @@
-#Bibliotecas importadas 
+#Cliente faz reserva → paga → funcionário entrega → cliente devolve → sistema calcula custos → funcionário finaliza e emite recibo.
+
+#Bibliotecas importadas
 import sqlite3
 from datetime import date
 
