@@ -5,118 +5,122 @@ from datetime import date
 # -----------------------------------------------------------------
 class Veiculo:
     def __init__(self, placa, modelo, status, kmatual, valor_diaria, preco_por_km, id=None):
-        self._id = id
-        self._placa = placa
-        self._modelo = modelo
-        self._status = status
-        self._kmatual = kmatual
-        self._valor_diaria = valor_diaria
-        self._preco_por_km = preco_por_km 
+        self.__id = id
+        self.__placa = placa
+        self.__modelo = modelo
+        self.__status = status
+        self.__kmatual = kmatual
+        self.__valor_diaria = valor_diaria
+        self.__preco_por_km = preco_por_km
 
     @property
     def id(self):
-        return self._id
+        return self.__id
 
     @property
     def placa(self):
-        return self._placa
-    
+        return self.__placa
+
     @property
     def modelo(self):
-        return self._modelo
+        return self.__modelo
 
     @property
     def status(self):
-        return self._status
-    
-    @property
-    def kmatual(self):
-        return self._kmatual
-
-    @property
-    def valor_diaria(self):
-        return self._valor_diaria
-        
-    @property
-    def preco_por_km(self):
-        return self._preco_por_km
-
-    @valor_diaria.setter
-    def valor_diaria(self, novo_valor):
-        if novo_valor > 0:
-            self._valor_diaria = novo_valor
-        else:
-            raise ValueError("O valor da diária deve ser positivo.")
+        return self.__status
 
     @status.setter
     def status(self, novo_status):
         status_veiculo = ["disponivel", "reservado", "alugado", "manutencao", "indisponivel"]
         if novo_status.lower() in status_veiculo:
-            self._status = novo_status.lower()
+            self.__status = novo_status.lower()
         else:
             raise ValueError("Status inválido!")
 
+    @property
+    def kmatual(self):
+        return self.__kmatual
+
     @kmatual.setter
     def kmatual(self, novo_km):
-        if novo_km >= self._kmatual:
-            self._kmatual = novo_km
+        if novo_km >= self.__kmatual:
+            self.__kmatual = novo_km
         else:
             raise ValueError("Nova kilometragem menor que a anterior")
 
+    @property
+    def valor_diaria(self):
+        return self.__valor_diaria
+
+    @valor_diaria.setter
+    def valor_diaria(self, novo_valor):
+        if novo_valor > 0:
+            self.__valor_diaria = novo_valor
+        else:
+            raise ValueError("O valor da diária deve ser positivo.")
+
+    @property
+    def preco_por_km(self):
+        return self.__preco_por_km
+
+# -----------------------------------------------------------------
 class Manutencao:
     def __init__(self, veiculo: Veiculo, descricao: str, data_inicio: date, custo: float = 0.0, id: int = None):
-        self._id = id
-        self._veiculo = veiculo
-        self._descricao = descricao
-        self._data_inicio = data_inicio
-        self._data_fim = None  
-        self._custo = custo
-        self._status = "em andamento" 
+        self.__id = id
+        self.__veiculo = veiculo
+        self.__descricao = descricao
+        self.__data_inicio = data_inicio
+        self.__data_fim = None
+        self.__custo = custo
+        self.__status = "em andamento"
 
     @property
     def id(self):
-        return self._id
-
-    @property
-    def data_manutencao(self):
-        return self._data_manutencao
+        return self.__id
     
     @property
-    def custo(self):
-        return self._custo
+    def status(self):
+        return self.__status
+    
+    @status.setter
+    def status(self, novo_status):
+        self.__status = novo_status.lower()
 
-    @data_manutencao.setter
-    def data_manutencao(self, nova_data):
-        if isinstance(nova_data, date):
-            self._data_manutencao = nova_data
-        else:
-            raise TypeError("A data de manutenção deve ser um objeto datetime.date.")
+    @property
+    def custo(self):
+        return self.__custo
+    
+    @property
+    def descricao(self):
+        return self.__descricao
+    
+    @property
+    def data_inicio(self):
+        return self.__data_inicio
+    
+    @property
+    def data_fim(self):
+        return self.__data_fim
 
     @custo.setter
     def custo(self, novo_custo):
         if novo_custo >= 0:
-            self._custo = novo_custo
+            self.__custo = novo_custo
         else:
             raise ValueError("O custo não pode ser negativo.")
-    
+
     def iniciar(self):
-        """ Coloca o veículo em manutenção. """
-        if self._veiculo.status != "disponivel":
-            raise ValueError(f"Veículo {self._veiculo.placa} não está disponível para manutenção (Status: {self._veiculo.status}).")
-        
-        self._status = "em andamento"
-        self._veiculo.status = "manutencao"
-        print(f"Veículo {self._veiculo.placa} enviado para manutenção.")
+        if self.veiculo.status != "disponivel":
+            raise ValueError(f"Veículo {self.veiculo.placa} não está disponível para manutenção (Status: {self.__veiculo.status}).")
+        self.status = "em andamento"
+        self.veiculo.status = "manutencao"
+        print(f"Veículo {self.veiculo.placa} enviado para manutenção.")
 
     def concluir(self, data_conclusao: date, custo_final: float):
-        """ Conclui a manutenção e libera o veículo. """
-        if self._status != "em andamento":
+        if self.__status != "em andamento":
             raise ValueError("Esta manutenção já foi concluída.")
-            
-        self._status = "concluida"
-        self._data_fim = data_conclusao
-        self._custo = custo_final
-        
-        # Libera o veículo
-        self._veiculo.status = "disponivel"
-        print(f"Manutenção (ID: {self.id}) concluída. Veículo {self._veiculo.placa} está 'disponivel'.")
+        self.__status = "concluida"
+        self.__data_fim = data_conclusao
+        self.__custo = custo_final
+        self.veiculo.status = "disponivel"
+        print(f"Manutenção (ID: {self.__id}) concluída. Veículo {self.__veiculo.placa} está 'disponivel'.")

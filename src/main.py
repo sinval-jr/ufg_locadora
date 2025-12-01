@@ -176,7 +176,7 @@ def menu_cliente():
             else:
                 reserva.cancelar_reserva()
                 reserva_dao.salvar(reserva)
-                veiculo_dao.salvar(reserva._veiculo)
+                veiculo_dao.salvar(reserva.__veiculo)
 
                 print(f"✅ Reserva {res_id} cancelada e veículo liberado com sucesso.")
         except ValueError:
@@ -203,15 +203,14 @@ def menu_funcionario():
             reserva = reserva_dao.buscar_por_id(res_id)
             
             if reserva:
-                # Associa este funcionário à reserva
-                reserva._funcionario = func
+                
                 reserva_dao.salvar(reserva) 
                 
                 locacao = func.entregar_veiculo(reserva)
                 
                 if locacao:
                     locacao_dao.salvar(locacao)
-                    veiculo_dao.salvar(reserva._veiculo) 
+                    veiculo_dao.salvar(reserva.__veiculo) 
                     print(f"✅ Locação iniciada! ID Locação: {locacao.id}")
             else:
                 print("Reserva não encontrada.")
@@ -226,10 +225,10 @@ def menu_funcionario():
             if locacao:
                 km_atual = int(input("KM atual do veículo: "))
                 func.finalizar_locacao(locacao, km_atual, "dinheiro")
-                
+                print("Salvando no banco")
                 
                 locacao_dao.salvar(locacao)
-                veiculo_dao.salvar(locacao._reserva._veiculo) 
+                veiculo_dao.salvar(locacao.reserva.veiculo) 
                 
                 print("✅ Locação Finalizada e Veículo Liberado.")
             else:
@@ -293,7 +292,7 @@ def menu_veiculo():
                 print("❌ Não foi encontrada manutenção 'em andamento' para este veículo.")
                 return
 
-            print(f"Manutenção encontrada (ID: {manutencao.id}): {manutencao._descricao}")
+            print(f"Manutenção encontrada (ID: {manutencao.id}): {manutencao.__descricao}")
             # ---------------------
             
             custo_final = float(input("Digite o custo final (R$): "))
@@ -301,7 +300,7 @@ def menu_veiculo():
             manutencao.concluir(date.today(), custo_final)
             
             manutencao_dao.salvar(manutencao) 
-            veiculo_dao.salvar(manutencao._veiculo) # Corrigido para ._veiculo
+            veiculo_dao.salvar(manutencao.__veiculo) # Corrigido para ._veiculo
             
             print("✅ Manutenção finalizada com sucesso!")
 

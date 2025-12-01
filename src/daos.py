@@ -138,7 +138,7 @@ class VeiculoDAO(BaseDAO):
                 INSERT INTO veiculo (placa, modelo, status, kmatual, valor_diaria, preco_por_km)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (veiculo.placa, veiculo.modelo, veiculo.status, veiculo.kmatual, getattr(veiculo, "_valor_diaria", 0.0), getattr(veiculo, "_preco_por_km", 0.0)))
-            veiculo._id = cursor.lastrowid
+            veiculo.__id = cursor.lastrowid
         else:
             cursor.execute("UPDATE veiculo SET status=?, kmatual=? WHERE veiculo_id=?", (veiculo.status, veiculo.kmatual, veiculo.id))
 
@@ -167,15 +167,15 @@ class PagamentoDAO(BaseDAO):
     def salvar(self, pagamento: Pagamento, reserva_id: int):
         conn = self.get_connection()
         cursor = conn.cursor()
-        dt_pgto = pagamento._data_pagamento.isoformat() if isinstance(pagamento._data_pagamento, date) else str(pagamento._data_pagamento)
-        if pagamento._id is None:
+        dt_pgto = pagamento.data_pagamento.isoformat() if isinstance(pagamento.data_pagamento, date) else str(pagamento.data_pagamento)
+        if pagamento.id is None:
             cursor.execute("""
                 INSERT INTO pagamento (reserva_id, tipo, valor, data_pagamento)
                 VALUES (?, ?, ?, ?)
-            """, (reserva_id, pagamento._tipo, pagamento._valor, dt_pgto))
-            pagamento._id = cursor.lastrowid
+            """, (reserva_id, pagamento.tipo, pagamento.valor, dt_pgto))
+            pagamento.id = cursor.lastrowid
         else:
-            cursor.execute("UPDATE pagamento SET tipo=?, valor=?, data_pagamento=? WHERE pagamento_id=?", (pagamento._tipo, pagamento._valor, dt_pgto, pagamento._id))
+            cursor.execute("UPDATE pagamento SET tipo=?, valor=?, data_pagamento=? WHERE pagamento_id=?", (pagamento.tipo, pagamento.valor, dt_pgto, pagamento.id))
         conn.commit()
         conn.close()
         return pagamento
@@ -205,7 +205,7 @@ class PessoaDAO(BaseDAO):
             cursor.execute("""
                 INSERT INTO pessoa (nome, telefone, email, rua, numero, cidade, estado, cep)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (pessoa.nome, pessoa.telefone, pessoa.email, pessoa._rua, pessoa._numero, pessoa._cidade, pessoa._estado, pessoa._cep))
+            """, (pessoa.nome, pessoa.telefone, pessoa.email, pessoa.rua, pessoa.numero, pessoa.cidade, pessoa.estado, pessoa.cep))
             return cursor.lastrowid
         else:
             return pessoa.id
@@ -219,7 +219,7 @@ class ClienteDAO(PessoaDAO):
         cursor = conn.cursor()
 
         pessoa_id = self._salvar_pessoa(cliente, cursor)
-        cliente._id = pessoa_id
+        cliente.__id = pessoa_id
 
         cursor.execute("SELECT pessoa_id FROM cliente WHERE pessoa_id=?", (pessoa_id,))
         if cursor.fetchone() is None:
@@ -253,7 +253,7 @@ class FuncionarioDAO(PessoaDAO):
         cursor = conn.cursor()
 
         pessoa_id = self._salvar_pessoa(funcionario, cursor)
-        funcionario._id = pessoa_id
+        funcionario.__id = pessoa_id
 
         cursor.execute("SELECT pessoa_id FROM funcionario WHERE pessoa_id=?", (pessoa_id,))
         if cursor.fetchone() is None:
@@ -300,15 +300,15 @@ class ReservaDAO(BaseDAO):
             cursor.execute("""
                 INSERT INTO reserva (pessoa_id, veiculo_id, data_inicio, data_fim, status)
                 VALUES (?, ?, ?, ?, ?)
-            """, (reserva._cliente.id, reserva._veiculo.id, dt_ini, dt_fim, reserva._status))
-            reserva._id = cursor.lastrowid
+            """, (reserva.cliente.id, reserva.veiculo.id, dt_ini, dt_fim, reserva.status))
+            reserva.id = cursor.lastrowid
         else:
-            cursor.execute("UPDATE reserva SET status=? WHERE reserva_id=?", (reserva._status, reserva.id))
+            cursor.execute("UPDATE reserva SET status=? WHERE reserva_id=?", (reserva.status, reserva.id))
 
         conn.commit()
         conn.close()
 
-        for pgto in reserva._pagamentos:
+        for pgto in reserva.pagamentos:
             self.pagamento_dao.salvar(pgto, reserva.id)
 
         return reserva
@@ -325,8 +325,8 @@ class ReservaDAO(BaseDAO):
             dt_ini = date.fromisoformat(row[3])
             dt_fim = date.fromisoformat(row[4])
             reserva = Reserva(cliente, veiculo, dt_ini, dt_fim, id=row[0])
-            reserva._status = row[5] if len(row) > 5 else "pendente"
-            reserva._pagamentos = self.pagamento_dao.listar_por_reserva(reserva.id)
+            reserva.__status = row[5] if len(row) > 5 else "pendente"
+            reserva.__pagamentos = self.pagamento_dao.listar_por_reserva(reserva.id)
             return reserva
         return None
 
@@ -334,24 +334,25 @@ class LocacaoDAO(BaseDAO):
     def __init__(self, reserva_dao, funcionario_dao, db_name="locadora.db"):
         super().__init__(db_name)
         self.reserva_dao = reserva_dao
+        self.funcionario_dao = funcionario_dao
 
     def salvar(self, locacao: Locacao):
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        dt_ret = locacao._data_retirada.isoformat() if locacao._data_retirada else None
-        dt_dev_real = locacao._data_devolucao_real.isoformat() if locacao._data_devolucao_real else None
+        dt_ret = locacao.data_retirada.isoformat() if locacao.data_retirada else None
+        dt_dev_real = locacao.data_devolucao_real.isoformat() if locacao.data_devolucao_real else None
 
-        func_id = locacao._funcionario.id if locacao._funcionario else None
+        func_id = locacao.funcionario.id if locacao.funcionario else None
 
         if getattr(locacao, "id", None) is None:
             cursor.execute("""
                 INSERT INTO locacao (reserva_id, funcionario_id, data_retirada, km_retirada, data_devolucao_real, km_devolucao, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (locacao._reserva.id, func_id, dt_ret, locacao._km_retirada, dt_dev_real, locacao._km_devolucao, locacao._status))
-            locacao._id = cursor.lastrowid
+            """, (locacao.reserva.id, func_id, dt_ret, locacao.km_retirada, dt_dev_real, locacao.km_devolucao, locacao.status))
+            locacao.id = cursor.lastrowid
         else:
-            cursor.execute("UPDATE locacao SET data_devolucao_real=?, km_devolucao=?, status=? WHERE locacao_id=?", (dt_dev_real, locacao._km_devolucao, locacao._status, locacao.id))
+            cursor.execute("UPDATE locacao SET data_devolucao_real=?, km_devolucao=?, status=? WHERE locacao_id=?", (dt_dev_real, locacao.km_devolucao, locacao.status, locacao.id))
 
         conn.commit()
         conn.close()
@@ -365,12 +366,13 @@ class LocacaoDAO(BaseDAO):
         conn.close()
         if row:
             reserva = self.reserva_dao.buscar_por_id(row[1])
-            dt_ret = date.fromisoformat(row[2]) if row[2] else None
-            locacao = Locacao(reserva, dt_ret, row[3], row[6], id=row[0])
-            if row[4]:
-                locacao._data_devolucao_real = date.fromisoformat(row[4])
+            funcionario = self.funcionario_dao.buscar_por_id(row[2])
+            dt_ret = date.fromisoformat(row[3]) if row[3] else None
+            locacao = Locacao(reserva, dt_ret, row[4], row[7], funcionario, id=row[0])
             if row[5]:
-                locacao._km_devolucao = row[5]
+                locacao.data_devolucao_real = date.fromisoformat(row[5])
+            if row[6]:
+                locacao.km_devolucao = row[6]
             return locacao
         return None
     
@@ -386,23 +388,23 @@ class ManutencaoDAO(BaseDAO):
         # --- CORREÇÃO AQUI ---
         # Acessando os atributos privados (ex: _data_inicio) diretamente
         # para evitar o erro de @property faltante.
-        dt_ini = manutencao._data_inicio.isoformat() 
-        dt_fim = manutencao._data_fim.isoformat() if manutencao._data_fim else None
+        dt_ini = manutencao.data_inicio.isoformat() 
+        dt_fim = manutencao.data_fim.isoformat() if manutencao.__data_fim else None
         
         if manutencao.id is None:
             # Inserir
             cursor.execute("""
                 INSERT INTO manutencao (veiculo_id, descricao, data_inicio, data_fim, custo, status)
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (manutencao._veiculo.id, manutencao._descricao, dt_ini, dt_fim, manutencao._custo, manutencao._status))
-            manutencao._id = cursor.lastrowid
+            """, (manutencao.veiculo.id, manutencao.descricao, dt_ini, dt_fim, manutencao.custo, manutencao.status))
+            manutencao.__id = cursor.lastrowid
         else:
             # Atualizar (ex: ao concluir)
             cursor.execute("""
                 UPDATE manutencao 
                 SET data_fim=?, custo=?, status=?
                 WHERE id=?
-            """, (dt_fim, manutencao._custo, manutencao._status, manutencao.id))
+            """, (dt_fim, manutencao.custo, manutencao.status, manutencao.id))
             
         conn.commit()
         conn.close()
@@ -422,6 +424,6 @@ class ManutencaoDAO(BaseDAO):
             dt_ini = date.fromisoformat(row[3])
             
             man = Manutencao(veiculo, row[2], dt_ini, row[5], id=row[0])
-            man._status = row[6] # Garante status
+            man.__status = row[6] # Garante status
             return man
         return None
