@@ -1,4 +1,4 @@
-@startuml Diagrama de Classes - Locacao de Veiculos
+@startuml
 title Diagrama de Classes - Locacao de Veiculos
 
 '========================
@@ -151,7 +151,7 @@ Pessoa <|-- Funcionario
 '========================
 Cliente "1" *-- "0..*" Reserva : faz
 Reserva "1" *-- "0..1" Pagamento : possui
-Reserva "1" *-- "0..1" Locacao : gera
+Reserva "1" *-- "1" Locacao : gera
 Veiculo "1" *-- "0..*" Manutencao : recebe 
 
 
