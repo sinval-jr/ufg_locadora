@@ -41,13 +41,6 @@ class StatusLocacao <<enumeration>> {
   Cancelada
 }
 
-class TipoPagamento <<enumeration>> {
-  Cartao
-  Boleto
-  Dinheiro
-  Transferencia
-}
-
 class TipoCargo <<enumeration>> {
   Atendente
   Vendedor
@@ -91,7 +84,6 @@ class Veiculo {
   - id: UUID
   - placa: string
   - modelo: string
-  - categoria: string
   - status: StatusVeiculo
   - kmAtual: int
   + atualizarStatus(novoStatus)
@@ -130,7 +122,6 @@ class Pagamento {
   - tipo: TipoPagamento
   - valor: decimal
   - data: DateTime
-  - status: StatusPagamento
   + processar()
   + confirmar()
   + estornar()
@@ -140,8 +131,10 @@ class Pagamento {
 class Manutencao {
   - id: UUID
   - descricao: string
-  - data: Date
+  - data_inicio: Date
+  - data_fim: Date
   - custo: decimal
+  - status: StatusVeiculo
   + registrar()
   + concluir()
   + gerarRelatorio(): string
