@@ -1,7 +1,9 @@
 import sys
 import os
 from datetime import date, datetime
-from model import Cliente, Funcionario, Veiculo, Pagamento, Manutencao
+from builder_pagamento import Pagamento
+from builder_client_func import Cliente, Funcionario
+from builder_veiculo_manutencao import Veiculo, Manutencao
 from daos import BaseDAO, ClienteDAO, FuncionarioDAO, VeiculoDAO, ReservaDAO, LocacaoDAO, PagamentoDAO, ManutencaoDAO
 
 # Procura por todos os locadora.db dentro da pasta do projeto (pode demorar pouco)
@@ -20,7 +22,7 @@ pagamento_dao = PagamentoDAO()
 manutencao_dao = ManutencaoDAO(veiculo_dao)
 
 reserva_dao = ReservaDAO(cliente_dao, veiculo_dao, pagamento_dao, "locadora.db")
-locacao_dao = LocacaoDAO(reserva_dao, "locadora.db")
+locacao_dao = LocacaoDAO(reserva_dao, funcionario_dao, "locadora.db")
 
 # --- FUNÇÕES UTILITÁRIAS ---
 def input_data(mensagem):
@@ -87,6 +89,7 @@ def menu_cliente():
     print("1. Novo Cadastro")
     print("2. Fazer Reserva")
     print("3. Pagar Reserva")
+    print("4. Cancelar Reserva")
     print("0. Voltar")
     
     op = input("Escolha: ")
@@ -156,8 +159,30 @@ def menu_cliente():
 
             print(f"✅ Pagamento de R${val:.2f} registrado no Banco de Dados!")
             
+        
+
+        except Exception as e:
+            print(f"❌ Erro ao cancelar: {e}")
+
+    elif op == "4":
+        print("\n--- Cancelar Reserva ---")
+        try:
+            res_id = int(input("ID da Reserva a cancelar: "))
+            reserva = reserva_dao.buscar_por_id(res_id)
+
+            if not reserva:
+                print("❌ Reserva não encontrada.")
+
+            else:
+                reserva.cancelar_reserva()
+                reserva_dao.salvar(reserva)
+                veiculo_dao.salvar(reserva._veiculo)
+
+                print(f"✅ Reserva {res_id} cancelada e veículo liberado com sucesso.")
         except ValueError:
             print("Valor inválido.")
+
+        
 
 def menu_funcionario():
     func = selecionar_funcionario()

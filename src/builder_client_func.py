@@ -1,10 +1,6 @@
-#Cliente faz reserva → paga → funcionário entrega → cliente devolve → sistema calcula custos → funcionário finaliza e emite recibo.
-
-#Bibliotecas importadas
-import sqlite3
 from datetime import date
-
-
+from builder_veiculo_manutencao import Veiculo
+from builder_pagamento import Pagamento
 
 # -----------------------------------------------------------------
 # CLASSE BASE
@@ -50,127 +46,6 @@ class Pessoa:
             self._email = novo_email
         else:
             raise ValueError("E-mail inválido.")
-
-# -----------------------------------------------------------------
-# CLASSES DE ENTIDADE
-# -----------------------------------------------------------------
-class Veiculo:
-    def __init__(self, placa, modelo, status, kmatual, valor_diaria, preco_por_km, id=None):
-        self._id = id
-        self._placa = placa
-        self._modelo = modelo
-        self._status = status
-        self._kmatual = kmatual
-        self._valor_diaria = valor_diaria
-        self._preco_por_km = preco_por_km 
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def placa(self):
-        return self._placa
-    
-    @property
-    def modelo(self):
-        return self._modelo
-
-    @property
-    def status(self):
-        return self._status
-    
-    @property
-    def kmatual(self):
-        return self._kmatual
-
-    @property
-    def valor_diaria(self):
-        return self._valor_diaria
-        
-    @property
-    def preco_por_km(self):
-        return self._preco_por_km
-
-    @valor_diaria.setter
-    def valor_diaria(self, novo_valor):
-        if novo_valor > 0:
-            self._valor_diaria = novo_valor
-        else:
-            raise ValueError("O valor da diária deve ser positivo.")
-
-    @status.setter
-    def status(self, novo_status):
-        status_veiculo = ["disponivel", "reservado", "alugado", "manutencao", "indisponivel"]
-        if novo_status.lower() in status_veiculo:
-            self._status = novo_status.lower()
-        else:
-            raise ValueError("Status inválido!")
-
-    @kmatual.setter
-    def kmatual(self, novo_km):
-        if novo_km >= self._kmatual:
-            self._kmatual = novo_km
-        else:
-            raise ValueError("Nova kilometragem menor que a anterior")
-
-class Manutencao:
-    def __init__(self, veiculo: Veiculo, descricao: str, data_inicio: date, custo: float = 0.0, id: int = None):
-        self._id = id
-        self._veiculo = veiculo
-        self._descricao = descricao
-        self._data_inicio = data_inicio
-        self._data_fim = None  
-        self._custo = custo
-        self._status = "em andamento" 
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def data_manutencao(self):
-        return self._data_manutencao
-    
-    @property
-    def custo(self):
-        return self._custo
-
-    @data_manutencao.setter
-    def data_manutencao(self, nova_data):
-        if isinstance(nova_data, date):
-            self._data_manutencao = nova_data
-        else:
-            raise TypeError("A data de manutenção deve ser um objeto datetime.date.")
-
-    @custo.setter
-    def custo(self, novo_custo):
-        if novo_custo >= 0:
-            self._custo = novo_custo
-        else:
-            raise ValueError("O custo não pode ser negativo.")
-    
-    def iniciar(self):
-        """ Coloca o veículo em manutenção. """
-        if self._veiculo.status != "disponivel":
-            raise ValueError(f"Veículo {self._veiculo.placa} não está disponível para manutenção (Status: {self._veiculo.status}).")
-        
-        self._status = "em andamento"
-        self._veiculo.status = "manutencao"
-        print(f"Veículo {self._veiculo.placa} enviado para manutenção.")
-
-    def concluir(self, data_conclusao: date, custo_final: float):
-        """ Conclui a manutenção e libera o veículo. """
-        if self._status != "em andamento":
-            raise ValueError("Esta manutenção já foi concluída.")
-            
-        self._status = "concluida"
-        self._data_fim = data_conclusao
-        self._custo = custo_final
-        
-        # Libera o veículo
-        self._veiculo.status = "disponivel"
-        print(f"Manutenção (ID: {self.id}) concluída. Veículo {self._veiculo.placa} está 'disponivel'.")
 
 # -----------------------------------------------------------------
 # ATORES (CLIENTE E FUNCIONÁRIO)
@@ -273,12 +148,8 @@ class Funcionario(Pessoa):
         """
         print(f"--- Atendente {self.nome} REGISTRANDO LOCAÇÃO (entregando veículo) ---")
         try:
-            locacao = reserva.iniciar_locacao()
+            locacao = reserva.iniciar_locacao(self)
             print(f"✅ Locação [ID: {locacao.id}] registrada. Bom proveito, {reserva._cliente.nome}!")
-            
-            if reserva._funcionario is None:
-                reserva._funcionario = self
-                print(f"   Atendente {self.nome} agora associado à reserva {reserva.id}.")
                 
             return locacao
         except ValueError as e:
@@ -308,20 +179,6 @@ class Funcionario(Pessoa):
             print("   Sem custos extras de quilometragem.")
             
         locacao.emitir_recibo(funcionario_final=self)
-
-# -----------------------------------------------------------------
-# CLASSES DE TRANSAÇÃO (PAGAMENTO, RESERVA, LOCAÇÃO)
-# -----------------------------------------------------------------
-class Pagamento:
-    def __init__(self, metodo, valor, data_pagamento, tipo="inicial", id=None):
-        self._id = id
-        self._metodo = metodo
-        self._valor = valor
-        self._data_pagamento = data_pagamento
-        self._tipo = tipo
-
-    def __repr__(self):
-        return f"Pagamento({self._tipo}: R$ {self._valor:.2f} via {self._metodo})"
 
 class Reserva:
 
@@ -385,15 +242,22 @@ class Reserva:
             raise TypeError("data_devolucao deve ser um objeto datetime.date.")
 
     def adicionar_pagamento(self, pagamento: Pagamento):
+        
+        if pagamento.tipo != "reserva":
+            raise ValueError("O pagamento deve ser do tipo 'reserva' para ser adicionado aqui.")
         self._pagamentos.append(pagamento)
-        print(f"   Pagamento de R${pagamento._valor:.2f} ({pagamento._tipo}) adicionado.")
-        print(f"   Total pago na reserva: R${self.total_pago():.2f}")
+        if self.total_pago() >= self._valor_total_previsto:
+            if self._status != "finalizado": # Evita mudar se já estiver finalizada
+                self._status = "finalizado"
+                # Esta mensagem será exibida na execução, confirmando a mudança
+                print("🚨 Status da Reserva alterado para 'finalizado' (Pagamento integral recebido).")
+        
 
 
     def total_pago(self):
         return sum(p._valor for p in self._pagamentos)
 
-    def iniciar_locacao(self):
+    def iniciar_locacao(self, funcionario: 'Funcionario'):
         if self.total_pago() >= self._valor_total_previsto:
             self._status = "locado"
             self._veiculo.status = "alugado"
@@ -402,7 +266,8 @@ class Reserva:
                 reserva=self,
                 data_retirada=date.today(),
                 km_retirada=self._veiculo.kmatual,
-                status="em andamento"
+                status="em andamento",
+                funcionario=funcionario
             )
             return nova_locacao
         else:
@@ -422,17 +287,18 @@ class Reserva:
             self._veiculo.status = "disponivel"
             
         print(f"Reserva {self._id} foi marcada como cancelada.")
-            
+
 
 class Locacao:
     
-    def __init__(self, reserva: Reserva, data_retirada, km_retirada, status, id=None):
+    def __init__(self, reserva: Reserva, data_retirada, km_retirada, status, funcionario: Funcionario = None, id=None):
         self._id = id
         
         self._reserva = reserva
         self._data_retirada = data_retirada
         self._km_retirada = km_retirada
         self._status = status
+        self._funcionario = funcionario
         
         self._data_devolucao_real = None
         self._km_devolucao = None

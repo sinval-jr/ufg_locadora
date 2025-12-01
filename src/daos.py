@@ -2,7 +2,9 @@
 import sqlite3
 import os
 from datetime import date, datetime
-from model import Cliente, Funcionario, Veiculo, Reserva, Locacao, Pagamento,Manutencao
+from builder_client_func import Cliente, Funcionario, Reserva, Locacao
+from builder_pagamento import Pagamento
+from builder_veiculo_manutencao import Veiculo, Manutencao
 
 # -----------------------------------------------------------------
 # BASE DAO (Gerencia Conexão e Tabelas)
@@ -42,8 +44,7 @@ class BaseDAO:
         CREATE TABLE IF NOT EXISTS cliente (
             pessoa_id INTEGER PRIMARY KEY,
             cpf TEXT NOT NULL,
-            cnh TEXT NOT NULL,
-            FOREIGN KEY(pessoa_id) REFERENCES pessoa(pessoa_id) ON DELETE CASCADE
+            cnh TEXT NOT NULL
         )""")
 
         # Tabela funcionario (singular)
@@ -52,8 +53,7 @@ class BaseDAO:
             pessoa_id INTEGER PRIMARY KEY,
             matricula TEXT UNIQUE,
             cargo TEXT,
-            salario REAL,
-            FOREIGN KEY(pessoa_id) REFERENCES pessoa(pessoa_id) ON DELETE CASCADE
+            salario REAL
         )""")
 
         # Tabela veiculo (singular)
@@ -110,6 +110,7 @@ class BaseDAO:
         CREATE TABLE IF NOT EXISTS locacao (
             locacao_id INTEGER PRIMARY KEY AUTOINCREMENT,
             reserva_id INTEGER NOT NULL,
+            funcionario_id INTEGER,
             data_retirada TEXT,
             km_retirada INTEGER,
             data_devolucao_real TEXT,
@@ -330,7 +331,7 @@ class ReservaDAO(BaseDAO):
         return None
 
 class LocacaoDAO(BaseDAO):
-    def __init__(self, reserva_dao, db_name="locadora.db"):
+    def __init__(self, reserva_dao, funcionario_dao, db_name="locadora.db"):
         super().__init__(db_name)
         self.reserva_dao = reserva_dao
 
@@ -341,11 +342,13 @@ class LocacaoDAO(BaseDAO):
         dt_ret = locacao._data_retirada.isoformat() if locacao._data_retirada else None
         dt_dev_real = locacao._data_devolucao_real.isoformat() if locacao._data_devolucao_real else None
 
+        func_id = locacao._funcionario.id if locacao._funcionario else None
+
         if getattr(locacao, "id", None) is None:
             cursor.execute("""
-                INSERT INTO locacao (reserva_id, data_retirada, km_retirada, data_devolucao_real, km_devolucao, status)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (locacao._reserva.id, dt_ret, locacao._km_retirada, dt_dev_real, locacao._km_devolucao, locacao._status))
+                INSERT INTO locacao (reserva_id, funcionario_id, data_retirada, km_retirada, data_devolucao_real, km_devolucao, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (locacao._reserva.id, func_id, dt_ret, locacao._km_retirada, dt_dev_real, locacao._km_devolucao, locacao._status))
             locacao._id = cursor.lastrowid
         else:
             cursor.execute("UPDATE locacao SET data_devolucao_real=?, km_devolucao=?, status=? WHERE locacao_id=?", (dt_dev_real, locacao._km_devolucao, locacao._status, locacao.id))
